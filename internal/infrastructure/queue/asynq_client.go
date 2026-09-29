@@ -6,11 +6,11 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/hibiken/asynq"
 	"github.com/hasanmahira/notifd/internal/config"
 	"github.com/hasanmahira/notifd/internal/domain"
 	"github.com/hasanmahira/notifd/internal/infrastructure/observ"
 	"github.com/hasanmahira/notifd/internal/usecase"
+	"github.com/hibiken/asynq"
 )
 
 // Publisher is the Asynq-backed implementation of usecase.Publisher.

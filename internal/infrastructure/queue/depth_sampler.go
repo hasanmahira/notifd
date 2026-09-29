@@ -5,9 +5,9 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/hibiken/asynq"
 	"github.com/hasanmahira/notifd/internal/config"
 	"github.com/hasanmahira/notifd/internal/infrastructure/observ"
+	"github.com/hibiken/asynq"
 )
 
 // StartDepthSampler polls Asynq's Inspector every `interval` and publishes

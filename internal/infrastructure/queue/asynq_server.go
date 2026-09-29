@@ -8,10 +8,10 @@ import (
 	"math/rand/v2"
 	"time"
 
-	"github.com/hibiken/asynq"
 	"github.com/hasanmahira/notifd/internal/config"
 	"github.com/hasanmahira/notifd/internal/infrastructure/observ"
 	"github.com/hasanmahira/notifd/internal/usecase"
+	"github.com/hibiken/asynq"
 )
 
 // Server is the Asynq worker server. Priority queues are weighted 6/3/1 —
