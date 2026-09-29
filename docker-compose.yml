@@ -1,0 +1,140 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: notifd
+      POSTGRES_PASSWORD: notifd
+      POSTGRES_DB: notifd
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notifd -d notifd"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+
+  migrate:
+    image: migrate/migrate:v4.17.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./migrations:/migrations:ro
+    command: [
+      "-path=/migrations",
+      "-database=postgres://notifd:notifd@postgres:5432/notifd?sslmode=disable",
+      "up",
+    ]
+    restart: "no"
+
+  mockserver:
+    build:
+      context: .
+      args:
+        CMD: mockwebhook
+    ports:
+      - "1080:1080"
+    environment:
+      MOCK_FORCE_STATUS: "0"
+    healthcheck:
+      test: ["CMD", "/srv/app", "-h"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      disable: true
+
+  traefik:
+    image: traefik:v3.2
+    command:
+      - --configFile=/etc/traefik/traefik.yml
+    ports:
+      - "8080:80"    # app traffic — same host port the README has always used
+      - "8081:8080"  # Traefik dashboard (http://localhost:8081/dashboard/)
+    volumes:
+      - ./deploy/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      args:
+        CMD: api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      APP_ENV: dev
+      HTTP_ADDR: ":8080"
+      LOG_LEVEL: info
+      POSTGRES_DSN: postgres://notifd:notifd@postgres:5432/notifd?sslmode=disable
+      REDIS_ADDR: redis:6379
+      WEBHOOK_URL: http://mockserver:1080/webhook
+      JWT_SECRET: dev-secret-change-me
+      OTEL_ENABLED: "true"
+      WORKER_MAX_RETRY: ${WORKER_MAX_RETRY:-8}
+    expose:
+      - "8080"
+    # Host port intentionally unmapped — Traefik sits in front and forwards
+    # :8080 -> all api replicas. `docker compose up --scale api=N` just works.
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.api.entrypoints=web"
+      - "traefik.http.services.api.loadbalancer.server.port=8080"
+      # Sticky session cookie so WebSocket upgrades land on the same replica
+      # throughout the life of the connection (the Pub/Sub bridge tolerates
+      # cross-replica events anyway, but sticky is cheaper).
+      - "traefik.http.services.api.loadbalancer.sticky.cookie=true"
+      - "traefik.http.services.api.loadbalancer.sticky.cookie.name=notifd_sticky"
+      - "traefik.http.services.api.loadbalancer.sticky.cookie.httpOnly=true"
+
+  worker:
+    build:
+      context: .
+      args:
+        CMD: worker
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      APP_ENV: dev
+      LOG_LEVEL: info
+      POSTGRES_DSN: postgres://notifd:notifd@postgres:5432/notifd?sslmode=disable
+      REDIS_ADDR: redis:6379
+      WEBHOOK_URL: http://mockserver:1080/webhook
+      JWT_SECRET: dev-secret-change-me
+      WORKER_CONCURRENCY: "10"
+    expose:
+      - "9100"
+    # Host port intentionally unmapped so `docker compose up --scale worker=N`
+    # can spin up multiple replicas without a port collision. Aggregate delivery
+    # stats live on mockserver /admin/stats; per-worker metrics are still
+    # reachable via `docker compose exec worker <tool>`.
+
+volumes:
+  pgdata:

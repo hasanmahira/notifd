@@ -1,0 +1,135 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {"type": "prometheus", "uid": "prom"},
+      "type": "timeseries",
+      "title": "Notifications sent (msg/s) — per channel",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "targets": [
+        {"expr": "sum by(channel) (rate(notifd_notifications_sent_total[1m]))", "legendFormat": "{{channel}}", "refId": "A"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}}
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prom"},
+      "type": "timeseries",
+      "title": "HTTP p95 latency — by route",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (route, le) (rate(notifd_http_request_duration_seconds_bucket[5m])))",
+          "legendFormat": "{{route}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []}
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prom"},
+      "type": "timeseries",
+      "title": "Asynq queue depth",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "targets": [
+        {"expr": "notifd_queue_depth", "legendFormat": "{{queue}} · {{state}}", "refId": "A"}
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prom"},
+      "type": "timeseries",
+      "title": "Rate-limit denials — per channel",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "targets": [
+        {"expr": "rate(notifd_ratelimit_deny_total[1m])", "legendFormat": "{{channel}}", "refId": "A"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []}
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prom"},
+      "type": "stat",
+      "title": "Circuit breaker (webhook)",
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 16},
+      "targets": [
+        {"expr": "notifd_circuit_breaker_state", "refId": "A"}
+      ],
+      "options": {
+        "reduceOptions": {"values": false, "calcs": ["lastNotNull"]},
+        "textMode": "auto",
+        "colorMode": "background"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {"type": "value", "options": {"0": {"text": "closed", "color": "green"}, "1": {"text": "half-open", "color": "yellow"}, "2": {"text": "open", "color": "red"}}}
+          ]
+        }
+      }
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prom"},
+      "type": "stat",
+      "title": "Dead-letter total",
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 16},
+      "targets": [
+        {"expr": "sum(notifd_notifications_dead_letter_total)", "refId": "A"}
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prom"},
+      "type": "stat",
+      "title": "WebSocket active conns",
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 16},
+      "targets": [
+        {"expr": "notifd_websocket_active_connections", "refId": "A"}
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prom"},
+      "type": "stat",
+      "title": "Provider latency p95",
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 16},
+      "targets": [
+        {"expr": "histogram_quantile(0.95, sum by (le) (rate(notifd_provider_request_duration_seconds_bucket[5m])))", "refId": "A"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s"}}
+    },
+    {
+      "datasource": {"type": "loki", "uid": "loki"},
+      "type": "logs",
+      "title": "Live logs — errors only",
+      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 20},
+      "targets": [
+        {"expr": "{service=~\"api|worker\", level=\"ERROR\"}", "refId": "A"}
+      ],
+      "options": {"showTime": true, "wrapLogMessage": false, "enableLogDetails": true}
+    },
+    {
+      "datasource": {"type": "loki", "uid": "loki"},
+      "type": "logs",
+      "title": "Live logs — all (last 15 min)",
+      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 30},
+      "targets": [
+        {"expr": "{service=~\"api|worker\"}", "refId": "A"}
+      ],
+      "options": {"showTime": true, "wrapLogMessage": false, "enableLogDetails": true}
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": ["notifd"],
+  "templating": {"list": []},
+  "time": {"from": "now-15m", "to": "now"},
+  "timepicker": {},
+  "timezone": "",
+  "title": "Notifd — Overview",
+  "uid": "notifd-overview",
+  "version": 1,
+  "weekStart": ""
+}

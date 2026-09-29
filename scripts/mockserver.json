@@ -1,0 +1,22 @@
+[
+  {
+    "httpRequest": {
+      "method": "POST",
+      "path": "/webhook"
+    },
+    "httpResponse": {
+      "statusCode": 202,
+      "headers": {
+        "content-type": ["application/json"]
+      },
+      "body": {
+        "type": "JSON",
+        "json": {
+          "messageId": "mock-${randomUUID}",
+          "status": "accepted",
+          "timestamp": "${date:yyyy-MM-dd'T'HH:mm:ss.SSS'Z'}"
+        }
+      }
+    }
+  }
+]

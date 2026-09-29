@@ -1,0 +1,54 @@
+# Traefik static config. Routing discovery comes from Docker labels on each
+# service — see docker-compose.yml.
+#
+# entryPoints:
+#   web       : :80   (mapped to host :8080 in docker-compose for app traffic)
+#   traefik   : :8080 (default; dashboard lives here, mapped to host :8081)
+#
+# Providers:
+#   docker — watch the Docker socket for labelled services and rebuild the
+#            routing table automatically. `--scale api=N` just works.
+
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+entryPoints:
+  web:
+    address: ":80"
+
+# insecure: dashboard on the default `traefik` entrypoint (:8080 inside the
+# container, mapped to :8081 on the host) without auth — dev only.
+api:
+  dashboard: true
+  insecure: true
+
+providers:
+  docker:
+    exposedByDefault: false   # only containers with traefik.enable=true are routed
+    network: default
+    watch: true
+
+log:
+  level: INFO
+  format: json
+
+accessLog:
+  format: json
+  fields:
+    defaultMode: keep
+    headers:
+      defaultMode: keep
+      names:
+        Authorization: drop   # never log JWTs
+
+ping: {}
+
+# Prometheus-format metrics on the default traefik entrypoint (:8080 inside
+# the container). Scraped by the observability overlay's Prometheus.
+metrics:
+  prometheus:
+    addEntryPointsLabels: true
+    addRoutersLabels: true
+    addServicesLabels: true
+    buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 5]

@@ -1,0 +1,35 @@
+# Binaries
+/bin/
+/dist/
+/mockwebhook
+*.exe
+*.test
+*.out
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+*.swp
+
+# Local env
+.env
+.env.local
+
+# Reference material (not shipped with the project)
+_reference/
+
+# Claude working state
+.claude/
+
+# Test coverage
+coverage.out
+coverage.html
+
+# Swagger generated artifacts (regenerated via make swagger)
+docs/docs.go
+docs/swagger.json
+docs/swagger.yaml
+
+# Wire generated files are committed intentionally
+# (wire_gen.go files stay tracked)

@@ -1,0 +1,49 @@
+# Promtail tails every container on the Docker socket and ships logs to Loki.
+# Container names / compose service names show up as labels so we can query
+# {service="api"} or {service="worker"} in Grafana.
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+  log_level: warn
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+    relabel_configs:
+      # container name -> `container` label ("/go-project-api-1" -> "go-project-api-1")
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container'
+      # compose service name -> `service` label (api, worker, traefik, ...)
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
+        target_label: 'service'
+      # compose project — helpful when you run multiple stacks on one machine
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_project']
+        target_label: 'project'
+    pipeline_stages:
+      # The app emits JSON lines via slog. Promote a few high-value fields to
+      # Loki labels so we can filter by request_id / level / path without
+      # paying for full-text scans.
+      - json:
+          expressions:
+            level: level
+            msg:   msg
+            request_id: request_id
+            notification_id: notification_id
+            service_inner: service   # our slog default attr (api / worker)
+      - labels:
+          level:
+          request_id:
+          notification_id:
+      - timestamp:
+          source: time
+          format: RFC3339Nano
